@@ -1,4 +1,4 @@
-// Good Morning Kakao Briefer - Nationwide Route & Transport Edition
+// Good Morning Kakao Briefer - Nationwide Route, KakaoMap & Dynamic Weather
 
 let KAKAO_API_KEY = 'f4a85c9ad10954427600e3d692e7431c';
 let MOBILE_URL = window.location.origin;
@@ -133,48 +133,105 @@ async function loadServerConfig() {
   }
 }
 
-// Autocomplete Search for Places
-function handleSearchInput(type) {
+// 🔍 Open KakaoMap search when magnifying glass is clicked
+function openKakaoMapSearch(type) {
+  const input = document.getElementById(type === 'origin' ? 'originInput' : 'destinationInput');
+  const query = (input.value || '').trim();
+  const targetLabel = type === 'origin' ? '출발지' : '도착지';
+
+  const searchUrl = query 
+    ? `https://map.kakao.com/?q=${encodeURIComponent(query)}`
+    : `https://map.kakao.com`;
+
+  showToast(`🗺️ 카카오맵에서 [${query || targetLabel}] 검색 페이지를 엽니다.`);
+  window.open(searchUrl, '_blank');
+}
+
+// Autocomplete Search & Instant Popular Suggestions for Places
+function handleSearchInput(type, showPopularOnEmpty = false) {
   const input = document.getElementById(type === 'origin' ? 'originInput' : 'destinationInput');
   const container = document.getElementById(type === 'origin' ? 'originSuggestions' : 'destinationSuggestions');
-  const query = (input.value || '').trim().toLowerCase();
+  const query = (input.value || '').trim();
 
+  // If empty and focused/clicked, show top popular regions across Korea!
   if (!query) {
-    container.classList.add('hidden');
+    if (showPopularOnEmpty) {
+      const popular = (window.KOREA_REGIONS || []).slice(0, 10);
+      container.innerHTML = `
+        <div class="p-2 bg-slate-950/80 text-[11px] font-bold text-amber-400 flex items-center justify-between border-b border-slate-800">
+          <span>🔥 전국 주요 추천 거점</span>
+          <span class="text-[10px] text-slate-500">원클릭 선택</span>
+        </div>
+        ${popular.map(m => `
+          <div onclick="selectPlace('${type}', '${m.town}', '${m.district}', '${m.province}', ${m.lat}, ${m.lng}, ${m.tempOffset})" class="p-2.5 hover:bg-slate-800 cursor-pointer flex items-center justify-between text-xs transition">
+            <div class="flex items-center gap-2">
+              <i class="ph ph-map-pin text-amber-400 text-sm"></i>
+              <div>
+                <div class="font-bold text-slate-100">${m.town}</div>
+                <div class="text-[10px] text-slate-400">${m.province} · ${m.district}</div>
+              </div>
+            </div>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">선택</span>
+          </div>
+        `).join('')}
+      `;
+      container.classList.remove('hidden');
+    } else {
+      container.classList.add('hidden');
+    }
     return;
   }
 
+  // Also trigger weather update immediately as user types
+  if (type === 'destination') {
+    selectedDestination.name = query;
+    recalculateRouteMetrics();
+  } else {
+    selectedOrigin.name = query;
+  }
+
+  const queryLower = query.toLowerCase();
   const matches = (window.KOREA_REGIONS || []).filter(item => {
-    return item.town.toLowerCase().includes(query) ||
-           item.district.toLowerCase().includes(query) ||
-           item.province.toLowerCase().includes(query) ||
-           (item.alias && item.alias.toLowerCase().includes(query));
+    return item.town.toLowerCase().includes(queryLower) ||
+           item.district.toLowerCase().includes(queryLower) ||
+           item.province.toLowerCase().includes(queryLower) ||
+           (item.alias && item.alias.toLowerCase().includes(queryLower));
   }).slice(0, 8);
 
-  if (matches.length === 0) {
-    container.innerHTML = `
+  let html = `
+    <!-- Direct KakaoMap Search Button in Dropdown -->
+    <div onclick="openKakaoMapSearch('${type}')" class="p-2.5 bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 font-bold text-xs flex items-center justify-between cursor-pointer border-b border-slate-800 transition">
+      <div class="flex items-center gap-2">
+        <i class="ph ph-magnifying-glass text-base"></i>
+        <span>카카오맵에서 "<strong>${query}</strong>" 검색하기</span>
+      </div>
+      <i class="ph ph-arrow-square-out text-sm"></i>
+    </div>
+  `;
+
+  if (matches.length > 0) {
+    html += matches.map(m => `
+      <div onclick="selectPlace('${type}', '${m.town}', '${m.district}', '${m.province}', ${m.lat}, ${m.lng}, ${m.tempOffset})" class="p-2.5 hover:bg-slate-800 cursor-pointer flex items-center justify-between text-xs transition">
+        <div class="flex items-center gap-2">
+          <i class="ph ph-map-pin text-amber-400 text-sm"></i>
+          <div>
+            <div class="font-bold text-slate-100">${m.town}</div>
+            <div class="text-[10px] text-slate-400">${m.province} · ${m.district}</div>
+          </div>
+        </div>
+        <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">선택</span>
+      </div>
+    `).join('');
+  } else {
+    html += `
       <div class="p-3 text-xs text-slate-400 text-center">
-        일치하는 주요 거점이 없습니다.<br>
-        <span class="text-amber-300 font-medium">"${query}"</span>(으)로 직접 사용됩니다.
+        일치하는 내장 동네가 없습니다.<br>
+        <span class="text-amber-300 font-medium">"${query}"</span>(으)로 직접 날씨와 경로를 계산합니다.
       </div>
     `;
-    container.classList.remove('hidden');
-    return;
   }
 
-  container.innerHTML = matches.map(m => `
-    <div onclick="selectPlace('${type}', '${m.town}', '${m.district}', '${m.province}', ${m.lat}, ${m.lng}, ${m.tempOffset})" class="p-2.5 hover:bg-slate-800 cursor-pointer flex items-center justify-between text-xs transition">
-      <div class="flex items-center gap-2">
-        <i class="ph ph-map-pin text-amber-400 text-sm"></i>
-        <div>
-          <div class="font-bold text-slate-100">${m.town}</div>
-          <div class="text-[10px] text-slate-400">${m.province} · ${m.district}</div>
-        </div>
-      </div>
-      <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">선택</span>
-    </div>
-  `).join('');
-
+  container.innerHTML = html;
   container.classList.remove('hidden');
 }
 
@@ -223,8 +280,133 @@ function applyPresetRoute(originTown, destTown) {
   showToast(`[${originTown}] ➡️ [${destTown}] 코스가 적용되었습니다.`);
 }
 
+// Dynamic Weather Engine for Any Korean Town
+function computeDynamicWeather(destinationObj, destText) {
+  const text = (destinationObj.name || destText || '').toLowerCase();
+  
+  // Base default
+  let cityLabel = destinationObj.name || destText || '선택 지역';
+  let temp = 14;
+  let condition = '구름 조금, 맑음';
+  let rainProb = 20;
+  let airQuality = '좋음 (24㎍/㎥)';
+  let outfit = '가벼운 자켓, 가디건, 슬랙스';
+  let umbrella = false;
+
+  // Regional matching
+  if (text.includes('제주') || text.includes('서귀포') || text.includes('애월') || text.includes('중문')) {
+    cityLabel = '제주특별자치도';
+    temp = 18.2;
+    condition = '따뜻하고 화창함';
+    rainProb = 10;
+    airQuality = '최고좋음 (12㎍/㎥)';
+    outfit = '얇은 셔츠, 슬랙스, 가벼운 외투';
+    umbrella = false;
+  } else if (text.includes('부산') || text.includes('해운대') || text.includes('서면') || text.includes('광안리') || text.includes('센텀') || text.includes('동래')) {
+    cityLabel = '부산광역시';
+    temp = 17.0;
+    condition = '맑고 쾌적한 바닷바람';
+    rainProb = 15;
+    airQuality = '좋음 (18㎍/㎥)';
+    outfit = '얇은 아우터, 롱슬리브 셔츠';
+    umbrella = false;
+  } else if (text.includes('울산') || text.includes('창원') || text.includes('김해') || text.includes('거제') || text.includes('여수') || text.includes('순천') || text.includes('목포')) {
+    cityLabel = '남해안/남부권';
+    temp = 16.5;
+    condition = '온화하고 맑음';
+    rainProb = 20;
+    airQuality = '좋음 (20㎍/㎥)';
+    outfit = '가디건, 면바지, 자켓';
+    umbrella = false;
+  } else if (text.includes('대구') || text.includes('수성') || text.includes('동성로') || text.includes('구미') || text.includes('포항') || text.includes('경주')) {
+    cityLabel = '대구/경북권';
+    temp = 15.5;
+    condition = '맑고 건조함';
+    rainProb = 20;
+    airQuality = '보통 (38㎍/㎥)';
+    outfit = '블레이저, 니트, 슬랙스';
+    umbrella = false;
+  } else if (text.includes('광주') || text.includes('전주') || text.includes('익산') || text.includes('군산') || text.includes('상무')) {
+    cityLabel = '호남권 (광주/전주)';
+    temp = 15.0;
+    condition = '구름 조금, 온화함';
+    rainProb = 25;
+    airQuality = '보통 (30㎍/㎥)';
+    outfit = '셔츠, 니트 조끼, 자켓';
+    umbrella = false;
+  } else if (text.includes('대전') || text.includes('유성') || text.includes('둔산') || text.includes('세종') || text.includes('천안') || text.includes('청주') || text.includes('아산')) {
+    cityLabel = '충청권 (대전/세종)';
+    temp = 13.8;
+    condition = '오후 한때 소나기 예보';
+    rainProb = 70;
+    airQuality = '보통 (35㎍/㎥)';
+    outfit = '방수 바람막이, 우산 필수 지참';
+    umbrella = true; // Rainy!
+  } else if (text.includes('강원') || text.includes('춘천') || text.includes('원주') || text.includes('홍천') || text.includes('평창')) {
+    cityLabel = '강원 영서 내륙';
+    temp = 10.5;
+    condition = '아침 쌀쌀함, 맑음';
+    rainProb = 20;
+    airQuality = '최고좋음 (14㎍/㎥)';
+    outfit = '도톰한 패딩 조끼, 기모 맨투맨';
+    umbrella = false;
+  } else if (text.includes('강릉') || text.includes('속초') || text.includes('동해') || text.includes('양양')) {
+    cityLabel = '강원 영동 해안';
+    temp = 14.2;
+    condition = '쾌청하고 맑음';
+    rainProb = 15;
+    airQuality = '최고좋음 (10㎍/㎥)';
+    outfit = '윈드브레이커, 맨투맨, 청바지';
+    umbrella = false;
+  } else if (text.includes('인천') || text.includes('송도') || text.includes('청라') || text.includes('부평')) {
+    cityLabel = '인천/송도/서해안';
+    temp = 12.8;
+    condition = '바닷바람 다소 강함, 맑음';
+    rainProb = 25;
+    airQuality = '좋음 (24㎍/㎥)';
+    outfit = '바람막이, 머플러, 자켓';
+    umbrella = false;
+  } else if (text.includes('판교') || text.includes('분당') || text.includes('수원') || text.includes('광교') || text.includes('용인') || text.includes('동탄') || text.includes('일산') || text.includes('고양')) {
+    cityLabel = '경기/판교권';
+    temp = 13.0;
+    condition = '구름 많음';
+    rainProb = 30;
+    airQuality = '보통 (40㎍/㎥)';
+    outfit = '가벼운 자켓, 셔츠, 가디건';
+    umbrella = false;
+  } else if (text.includes('서울') || text.includes('강남') || text.includes('여의도') || text.includes('마포') || text.includes('홍대') || text.includes('성수') || text.includes('종로') || text.includes('잠실')) {
+    cityLabel = '서울특별시';
+    temp = 14.0;
+    condition = '맑음 후 차차 흐림';
+    rainProb = 20;
+    airQuality = '좋음 (28㎍/㎥)';
+    outfit = '트렌치코트, 니트, 슬랙스';
+    umbrella = false;
+  } else if (destinationObj.tempOffset !== undefined) {
+    // If from database
+    temp = Math.round((14 + destinationObj.tempOffset) * 10) / 10;
+    cityLabel = destinationObj.town || destinationObj.name;
+    condition = temp > 15 ? '맑고 온화함' : (temp < 12 ? '쌀쌀하고 맑음' : '구름 조금, 쾌적함');
+  }
+
+  return {
+    city: cityLabel,
+    temp,
+    min: Math.round(temp - 5),
+    max: Math.round(temp + 5),
+    condition,
+    rainProb,
+    airQuality,
+    outfit,
+    umbrella
+  };
+}
+
 // Distance & Fare Calculator (Haversine & Taxi formula)
 function recalculateRouteMetrics() {
+  const originInputVal = document.getElementById('originInput').value || selectedOrigin.name;
+  const destInputVal = document.getElementById('destinationInput').value || selectedDestination.name;
+
   const lat1 = selectedOrigin.lat || 37.4979;
   const lon1 = selectedOrigin.lng || 127.0276;
   const lat2 = selectedDestination.lat || 37.4020;
@@ -241,58 +423,42 @@ function recalculateRouteMetrics() {
   const directDistance = R * c;
   
   // Real road multiplier ~1.35x
-  const roadKm = Math.max(1.2, directDistance * 1.35);
+  const roadKm = Math.max(1.5, directDistance * 1.35);
   const roadKmStr = roadKm.toFixed(1);
 
   // Transit Duration
   let duration = Math.round(roadKm * 2.3 + 8);
   if (duration < 15) duration = 15;
-  if (duration > 130) duration = 130;
+  if (duration > 140) duration = 140;
 
-  // Taxi Fare Estimation (2026 Korean taxi standards: base 4800 KRW up to 1.6km, +1000 KRW/km)
+  // Taxi Fare Estimation
   let taxiFareNum = 4800;
   if (roadKm > 1.6) {
     taxiFareNum += Math.round((roadKm - 1.6) * 1050 / 100) * 100;
   }
-  // Peak hour surcharge ~10%
   taxiFareNum = Math.round((taxiFareNum * 1.1) / 100) * 100;
   const taxiFareStr = taxiFareNum.toLocaleString();
 
-  // Transit Recommendation line
+  // Transit Recommendation
   let recommend = '지하철 급행 / 간선버스 환승';
-  if (selectedOrigin.name.includes('강남') && selectedDestination.name.includes('판교')) {
+  if (originInputVal.includes('강남') && destInputVal.includes('판교')) {
     recommend = '신분당선 급행 (강남역 ➡️ 판교역 14분 주파) / 광역버스(9000, 9401)';
-  } else if (selectedOrigin.name.includes('홍대') && selectedDestination.name.includes('여의도')) {
+  } else if (originInputVal.includes('홍대') && destInputVal.includes('여의도')) {
     recommend = '지하철 2호선 당산역 환승 9호선 급행 / 시내버스 5714번';
-  } else if (selectedOrigin.name.includes('송도') && selectedDestination.name.includes('가산')) {
+  } else if (originInputVal.includes('송도') && destInputVal.includes('가산')) {
     recommend = '인천 1호선 원인재역 ➡️ 수인분당선 ➡️ 1호선 급행 환승';
-  } else if (selectedOrigin.name.includes('해운대') && selectedDestination.name.includes('서면')) {
+  } else if (originInputVal.includes('해운대') && destInputVal.includes('서면')) {
     recommend = '부산 지하철 2호선 직통 (센텀 ➡️ 서면 22분) / 급행버스 1001번';
-  } else if (selectedOrigin.name.includes('유성') && selectedDestination.name.includes('둔산')) {
+  } else if (originInputVal.includes('유성') && destInputVal.includes('둔산')) {
     recommend = '대전 지하철 1호선 (유성온천역 ➡️ 시청역) / 간선 108번';
-  } else if (roadKm < 6) {
-    recommend = '시내 간선/지선 버스 직통 또는 자전거·도보 이동 추천';
+  } else if (roadKm < 5) {
+    recommend = '시내 간선/지선 버스 직통 또는 도보/자전거 이동';
   } else {
-    recommend = `주요 간선/광역버스 및 인접 지하철 연계 환승 (${roadKmStr}km)`;
+    recommend = `주요 간선/광역버스 및 지하철 연계 환승 (${roadKmStr}km)`;
   }
 
-  // Dynamic Weather computation for destination
-  const baseTemp = 14;
-  const tempOffset = selectedDestination.tempOffset !== undefined ? selectedDestination.tempOffset : 0;
-  const currentTemp = Math.round((baseTemp + tempOffset) * 10) / 10;
-  const isRain = selectedDestination.province.includes('대전') || selectedDestination.town.includes('둔산');
-
-  const weather = {
-    city: `${selectedDestination.province} ${selectedDestination.district || ''}`,
-    temp: currentTemp,
-    min: Math.round(currentTemp - 5),
-    max: Math.round(currentTemp + 5),
-    condition: isRain ? '오후 한때 소나기' : (currentTemp > 15 ? '맑고 온화함' : '구름 조금, 쾌적함'),
-    rainProb: isRain ? 65 : 20,
-    airQuality: '좋음 (26㎍/㎥)',
-    outfit: currentTemp < 12 ? '도톰한 자켓, 니트, 머플러' : '가벼운 가디건, 셔츠, 슬랙스',
-    umbrella: isRain
-  };
+  // Dynamic Weather for destination
+  const weather = computeDynamicWeather(selectedDestination, destInputVal);
 
   routeMetrics = {
     distanceKm: roadKmStr,
@@ -302,13 +468,13 @@ function recalculateRouteMetrics() {
     weather
   };
 
-  // Update DOM UI elements
+  // Update UI DOM
   document.getElementById('routeDistanceText').innerText = `약 ${roadKmStr} km`;
   document.getElementById('routeTransitDurationText').innerText = `약 ${duration}분`;
   document.getElementById('routeTaxiFareText').innerText = `약 ${taxiFareStr}원`;
   document.getElementById('routeTransitRecommendText').innerText = recommend;
 
-  // Update Weather preview card
+  // Update Weather Card
   renderWeatherPreviewCard(weather);
 }
 
@@ -319,22 +485,26 @@ function renderWeatherPreviewCard(w) {
 
   preview.innerHTML = `
     <div class="flex items-center gap-2.5">
-      <div class="text-2xl">${w.umbrella ? '🌧️' : '⛅'}</div>
+      <div class="text-3xl">${w.umbrella ? '🌧️' : (w.temp > 16 ? '☀️' : '⛅')}</div>
       <div>
-        <div class="font-bold text-slate-100 flex items-center gap-1 text-xs">
+        <div class="font-bold text-slate-100 flex items-center gap-1.5 text-xs sm:text-sm">
           <span>${w.temp}℃</span>
           <span class="text-slate-400 font-normal">(${w.condition})</span>
         </div>
-        <div class="text-[10px] text-slate-400 mt-0.5 truncate max-w-[140px]">
-          도착지: <span class="text-amber-300 font-medium">${w.city}</span>
+        <div class="text-[10px] text-slate-400 mt-0.5 truncate max-w-[150px]">
+          지역: <span class="text-amber-300 font-bold">${w.city}</span>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-0.5">
+          추천: <span class="text-slate-200">${w.outfit.split(',')[0]}</span>
         </div>
       </div>
     </div>
-    <div class="text-right">
+    <div class="text-right flex-shrink-0">
       <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${w.umbrella ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}">
         ${w.umbrella ? '☔ 우산 필수' : '☂️ 우산 없음'}
       </span>
-      <div class="text-[10px] text-slate-400 mt-0.5">미세먼지 ${w.airQuality.split(' ')[0]}</div>
+      <div class="text-[10px] text-slate-400 mt-1">미세먼지 ${w.airQuality.split(' ')[0]}</div>
+      <div class="text-[9px] text-slate-500">강수 ${w.rainProb}%</div>
     </div>
   `;
 }
@@ -358,7 +528,6 @@ function openKakaoMap(mode) {
     const byType = mode === 'car' ? 'CAR' : (mode === 'transit' ? 'PUBLICTRANSIT' : 'PUBLICTRANSIT');
     const appUrl = `kakaomap://route?sp=${selectedOrigin.lat},${selectedOrigin.lng}&ep=${selectedDestination.lat},${selectedDestination.lng}&by=${byType}`;
     
-    // Attempt deep link, fallback to web
     const start = Date.now();
     window.location.href = appUrl;
     setTimeout(() => {
@@ -378,7 +547,6 @@ function openKakaoTaxi() {
   
   showToast(`🚕 예상 택시비: 약 ${routeMetrics.taxiFare}원 (${routeMetrics.distanceKm}km) · 카카오 T로 연결합니다.`);
   
-  // Kakao T deeplink or taxi map
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   if (isMobile) {
     window.location.href = 'kakaot://';
