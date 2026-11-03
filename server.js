@@ -131,7 +131,7 @@ ${closing}`;
     date: dateStr,
     weather,
     fullText,
-    summary: `${weather.condition}, ${weather.temp}℃ / ${schedules.length}건의 일정 / 출근 약 ${commuteDuration || '45'}분`,
+    summary: `${weather.condition}, ${weather.temp}℃ / ${schedules && schedules.length ? schedules.length : 0}건의 일정 / 출근 약 ${commuteDuration || '45'}분`,
     umbrellaNotice
   };
 }
