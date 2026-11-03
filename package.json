@@ -1,13 +1,17 @@
 {
-  "name": "1103_001",
+  "name": "kakao-morning-briefer",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "☀️ 굿모닝 카톡 브리퍼 - 초개인화 출근길 AI 비서",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
-  "keywords": [],
+  "keywords": [
+    "kakao",
+    "playmcp",
+    "mcp",
+    "ai-agent",
+    "morning-briefing"
+  ],
   "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+  "license": "MIT"
 }

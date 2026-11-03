@@ -87,28 +87,49 @@ ${closing}`;
   };
 }
 
-module.exports = (req, res) => {
+module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    res.writeHead(204).end();
+    res.statusCode = 204;
+    res.end();
     return;
   }
 
-  // Parse body
-  let body = '';
-  req.on('data', chunk => { body += chunk; });
-  req.on('end', () => {
-    try {
-      const payload = typeof req.body === 'object' && req.body !== null ? req.body : JSON.parse(body || '{}');
-      const briefing = generateBriefingContent(payload);
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({ success: true, briefing }));
-    } catch (err) {
-      res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({ success: false, error: err.message }));
+  let payload = req.body;
+  if (!payload || typeof payload !== 'object') {
+    let body = '';
+    for await (const chunk of req) {
+      body += chunk;
     }
-  });
+    try {
+      payload = JSON.parse(body || '{}');
+    } catch (e) {
+      payload = {};
+    }
+  }
+
+  try {
+    const briefing = generateBriefingContent(payload);
+    const result = { success: true, briefing };
+
+    if (res.json) {
+      res.status(200).json(result);
+    } else {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.statusCode = 200;
+      res.end(JSON.stringify(result));
+    }
+  } catch (err) {
+    const errorResult = { success: false, error: err.message };
+    if (res.json) {
+      res.status(400).json(errorResult);
+    } else {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.statusCode = 400;
+      res.end(JSON.stringify(errorResult));
+    }
+  }
 };

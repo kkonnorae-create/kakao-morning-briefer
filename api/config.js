@@ -22,7 +22,8 @@ module.exports = (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    res.writeHead(204).end();
+    res.statusCode = 204;
+    res.end();
     return;
   }
 
@@ -30,11 +31,18 @@ module.exports = (req, res) => {
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const currentUrl = `${proto}://${host}`;
 
-  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-  res.end(JSON.stringify({
+  const data = {
     apiKey: process.env.KAKAO_API_KEY || 'f4a85c9ad10954427600e3d692e7431c',
     mobileUrl: currentUrl,
     regions: Object.keys(WEATHER_DATA).map(key => ({ id: key, ...WEATHER_DATA[key] })),
     stocks: STOCK_DATA
-  }));
+  };
+
+  if (res.json) {
+    res.status(200).json(data);
+  } else {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.statusCode = 200;
+    res.end(JSON.stringify(data));
+  }
 };
