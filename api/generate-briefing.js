@@ -6,8 +6,8 @@ const WEATHER_DATA = {
   'incheon': { city: '인천 (송도/부평)', temp: 13, min: 9, max: 17, condition: '바람 약간 강함', rainProb: 25, airQuality: '좋음 (25㎍/㎥)', outfit: '도톰한 아우터, 스카프', umbrella: false }
 };
 
-function generateBriefingContent({ region, origin, destination, commuteDuration, schedules, persona, customNotes }) {
-  const weather = WEATHER_DATA[region] || WEATHER_DATA['seoul'];
+function generateBriefingContent({ region, origin, destination, commuteDuration, schedules, persona, customNotes, distanceKm, taxiFare, transitRecommend, weatherCustom }) {
+  const weather = weatherCustom || WEATHER_DATA[region] || WEATHER_DATA['seoul'];
   const today = new Date();
   const dateStr = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일 (${['일', '월', '화', '수', '목', '금', '토'][today.getDay()]})`;
   
@@ -55,13 +55,16 @@ function generateBriefingContent({ region, origin, destination, commuteDuration,
 ----------------------------------------
 ${greeting}
 
-📍 [출근길 교통 & 동선]
+📍 [출근길 교통 & 대중교통 동선]
 • 경로: ${origin} ➡️ ${destination}
-• 예상 소요 시간: 약 ${commuteDuration || '45'}분
-• 이동 팁: 출근 피크 시간대(08:20~08:50) 대중교통 환승 구간 혼잡 예상
+• 거리 및 소요: 약 ${distanceKm || '16'}km (대중교통 약 ${commuteDuration || '42'}분)
+• 추천 노선: ${transitRecommend || '지하철 급행 / 광역버스 연계 환승'}
+• 택시 이용 시: 예상 요금 약 ${taxiFare || '18,500'}원 (교통상황 반영)
+• 이동 팁: 출근 피크 시간대(08:20~08:50) 혼잡 구간 사전 체크 권장
 
 🌦️ [오늘의 날씨 & 옷차림]
-• 현재: ${weather.temp}℃ (${weather.condition})
+• 지역: ${weather.city || '선택 지역'}
+• 현재 기온: ${weather.temp}℃ (${weather.condition})
 • 기온 범위: 최저 ${weather.min}℃ / 최고 ${weather.max}℃
 • 미세먼지: ${weather.airQuality}
 • 추천 옷차림: ${weather.outfit}
@@ -82,8 +85,11 @@ ${closing}`;
     date: dateStr,
     weather,
     fullText,
-    summary: `${weather.condition}, ${weather.temp}℃ / ${schedules ? schedules.length : 0}건의 일정 / 출근 약 ${commuteDuration || '45'}분`,
-    umbrellaNotice
+    summary: `${weather.city} · ${weather.condition} ${weather.temp}℃ / ${origin}➡️${destination} (${commuteDuration || '42'}분)`,
+    umbrellaNotice,
+    distanceKm: distanceKm || '16',
+    taxiFare: taxiFare || '18,500',
+    transitRecommend: transitRecommend || '지하철/버스 연계'
   };
 }
 

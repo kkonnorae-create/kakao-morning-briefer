@@ -37,3 +37,8 @@ button:active {
   display: block;
   margin: 0 auto;
 }
+
+/* Autocomplete item hover animation */
+#originSuggestions > div:hover, #destinationSuggestions > div:hover {
+  background-color: rgba(30, 41, 59, 0.9);
+}

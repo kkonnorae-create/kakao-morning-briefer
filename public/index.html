@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>☀️ 굿모닝 카톡 브리퍼 | 초개인화 출근길 AI 비서</title>
+  <title>☀️ 굿모닝 카톡 브리퍼 | 초개인화 전국 출근길 AI 비서</title>
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -17,6 +17,8 @@
   <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"></script>
   <!-- QRCode.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Korean Administrative Regions Data -->
+  <script src="regions-data.js"></script>
 
   <link rel="stylesheet" href="style.css">
 </head>
@@ -32,9 +34,9 @@
         <div>
           <h1 class="text-base sm:text-lg font-bold flex items-center gap-1.5">
             굿모닝 카톡 브리퍼
-            <span class="text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-400 border border-amber-400/20 font-medium">PlayMCP</span>
+            <span class="text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-400 border border-amber-400/20 font-medium">전국구 에디션</span>
           </h1>
-          <p class="text-[11px] sm:text-xs text-slate-400">초개인화 출근길 AI 모닝 비서</p>
+          <p class="text-[11px] sm:text-xs text-slate-400">대한민국 전체 시·군·구·동 출근길 AI 비서</p>
         </div>
       </div>
 
@@ -64,7 +66,7 @@
     <div class="lg:hidden px-4 py-2 border-t border-slate-800 bg-slate-900/95 flex gap-2">
       <button id="mobileTabSettings" onclick="switchMobileTab('settings')" class="flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-amber-400 text-slate-950 shadow">
         <i class="ph ph-sliders text-base"></i>
-        <span>브리핑 설정</span>
+        <span>출근길 & 브리핑 설정</span>
       </button>
       <button id="mobileTabPreview" onclick="switchMobileTab('preview')" class="flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-slate-800 text-slate-300 border border-slate-700 relative">
         <i class="ph ph-chat-circle-text text-base"></i>
@@ -80,41 +82,155 @@
     <!-- Left Column: Controls & Settings (7 cols) -->
     <div id="sectionSettings" class="lg:col-span-7 space-y-6">
 
-      <!-- Section: 출근길 동선 & 지역 -->
-      <div class="bg-slate-800/70 border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-xl">
-        <div class="flex items-center justify-between mb-4">
+      <!-- Section: 출근길 동선 & 대한민국 전체 시/구/동네 검색 -->
+      <div class="bg-slate-800/70 border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
+        <div class="flex items-center justify-between">
           <h2 class="text-sm sm:text-base font-semibold flex items-center gap-2 text-amber-400">
             <i class="ph ph-navigation-arrow text-lg"></i>
-            1. 출근길 동선 & 지역 설정
+            1. 출근길 동선 & 전국 동네 검색
           </h2>
-          <span class="text-[11px] sm:text-xs text-slate-400">카카오맵 & 날씨</span>
+          <button onclick="openModal('regionPickerModal')" class="text-xs px-2.5 py-1 bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/30 rounded-lg transition flex items-center gap-1 active:scale-95">
+            <i class="ph ph-map-pin"></i> 전국 시·도 선택기
+          </button>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-          <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1">기준 지역 (날씨)</label>
-            <select id="regionSelect" onchange="updateWeatherCard()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-400">
-              <option value="seoul">서울 (강남/여의도)</option>
-              <option value="pangyo" selected>성남/판교 테크노밸리</option>
-              <option value="incheon">인천 (송도/부평)</option>
-              <option value="daejeon">대전 (둔산/유성)</option>
-              <option value="busan">부산 (해운대/서면)</option>
-            </select>
+        <!-- Departure & Destination Autocomplete Inputs -->
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 relative">
+          
+          <!-- Departure (Start) -->
+          <div class="sm:col-span-5 relative">
+            <label class="block text-xs font-medium text-slate-400 mb-1 flex items-center justify-between">
+              <span class="flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                출발지 (집/동네)
+              </span>
+              <span class="text-[10px] text-slate-500">실시간 검색</span>
+            </label>
+            <div class="relative">
+              <input type="text" id="originInput" value="역삼동/강남역" placeholder="시/구/동/역명 입력 (예: 마포, 해운대, 둔산)" oninput="handleSearchInput('origin')" autocomplete="off" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 transition pr-8">
+              <i class="ph ph-magnifying-glass absolute right-3 top-3 text-slate-400 text-sm pointer-events-none"></i>
+            </div>
+            <!-- Origin Autocomplete Dropdown -->
+            <div id="originSuggestions" class="absolute left-0 right-0 top-full mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-30 hidden max-h-56 overflow-y-auto divide-y divide-slate-800"></div>
           </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1">출발지 (집)</label>
-            <input type="text" id="originInput" value="역삼역 (서울 강남구)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-400">
+
+          <!-- Swap Button -->
+          <div class="sm:col-span-2 flex items-end justify-center pb-1">
+            <button onclick="swapOriginDestination()" title="출발지-도착지 반전" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 flex items-center justify-center transition active:scale-90 shadow">
+              <i class="ph ph-arrows-left-right text-lg hidden sm:block"></i>
+              <i class="ph ph-arrows-down-up text-lg sm:hidden"></i>
+            </button>
           </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1">도착지 (회사/목적지)</label>
-            <input type="text" id="destinationInput" value="판교 테크노밸리" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-400">
+
+          <!-- Destination (End) -->
+          <div class="sm:col-span-5 relative">
+            <label class="block text-xs font-medium text-slate-400 mb-1 flex items-center justify-between">
+              <span class="flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+                도착지 (회사/목적지)
+              </span>
+              <span class="text-[10px] text-slate-500">실시간 검색</span>
+            </label>
+            <div class="relative">
+              <input type="text" id="destinationInput" value="삼평동/판교테크노밸리" placeholder="시/구/동/역명 입력 (예: 판교, 여의도, 센텀)" oninput="handleSearchInput('destination')" autocomplete="off" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 transition pr-8">
+              <i class="ph ph-magnifying-glass absolute right-3 top-3 text-slate-400 text-sm pointer-events-none"></i>
+            </div>
+            <!-- Destination Autocomplete Dropdown -->
+            <div id="destinationSuggestions" class="absolute left-0 right-0 top-full mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-30 hidden max-h-56 overflow-y-auto divide-y divide-slate-800"></div>
+          </div>
+
+        </div>
+
+        <!-- Quick Route Preset Chips -->
+        <div>
+          <div class="text-[11px] text-slate-400 mb-1.5 flex items-center gap-1">
+            <i class="ph ph-lightning text-amber-400"></i>
+            인기 출퇴근 코스 바로 선택:
+          </div>
+          <div class="flex flex-wrap gap-1.5 text-xs">
+            <button onclick="applyPresetRoute('역삼동/강남역', '삼평동/판교테크노밸리')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700/80 border border-slate-700/70 text-slate-300 hover:text-amber-300 transition text-[11px] flex items-center gap-1">
+              🚇 강남 ➡️ 판교
+            </button>
+            <button onclick="applyPresetRoute('서교동/홍대입구역', '여의도동/여의도역')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700/80 border border-slate-700/70 text-slate-300 hover:text-amber-300 transition text-[11px] flex items-center gap-1">
+              🏙️ 홍대 ➡️ 여의도
+            </button>
+            <button onclick="applyPresetRoute('송도동/송도센트럴파크', '가산동/가산디지털단지')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700/80 border border-slate-700/70 text-slate-300 hover:text-amber-300 transition text-[11px] flex items-center gap-1">
+              🏢 송도 ➡️ 가산G밸리
+            </button>
+            <button onclick="applyPresetRoute('우동/마린시티/센텀시티', '부전동/서면역')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700/80 border border-slate-700/70 text-slate-300 hover:text-amber-300 transition text-[11px] flex items-center gap-1">
+              🌊 해운대 ➡️ 서면
+            </button>
+            <button onclick="applyPresetRoute('도룡동/신세계/카이스트', '둔산동/정부대전청사')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700/80 border border-slate-700/70 text-slate-300 hover:text-amber-300 transition text-[11px] flex items-center gap-1">
+              🧪 유성 ➡️ 둔산
+            </button>
+            <button onclick="applyPresetRoute('반송동/동탄역', '이의동/광교중앙역')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700/80 border border-slate-700/70 text-slate-300 hover:text-amber-300 transition text-[11px] flex items-center gap-1">
+              🚄 동탄 ➡️ 광교
+            </button>
           </div>
         </div>
 
-        <!-- Weather Mini Preview Card -->
-        <div id="weatherPreview" class="bg-slate-900/80 rounded-xl p-3 border border-slate-700/60 flex items-center justify-between text-xs">
-          <!-- Dynamically filled by JS -->
+        <!-- Route Metrics & Real-time Weather Preview Card -->
+        <div class="bg-slate-900/90 rounded-xl p-3.5 border border-slate-700/80 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          
+          <!-- Left: Route & Distance Metrics -->
+          <div class="space-y-1.5 border-b sm:border-b-0 sm:border-r border-slate-800 pb-2 sm:pb-0 sm:pr-3">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">예상 이동 거리:</span>
+              <span id="routeDistanceText" class="font-bold text-amber-300 font-mono text-sm">약 16.2 km</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">대중교통 소요:</span>
+              <span id="routeTransitDurationText" class="font-bold text-slate-100">약 42분</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">예상 택시 요금:</span>
+              <span id="routeTaxiFareText" class="font-semibold text-amber-400">약 18,200원</span>
+            </div>
+            <div class="text-[11px] text-slate-400 truncate pt-0.5">
+              추천: <span id="routeTransitRecommendText" class="text-slate-200">신분당선 급행 / 광역버스</span>
+            </div>
+          </div>
+
+          <!-- Right: Destination Weather -->
+          <div id="weatherPreview" class="flex items-center justify-between pl-0 sm:pl-1">
+            <!-- Dynamically populated -->
+          </div>
         </div>
+
+        <!-- 🗺️ Transit & Map Quick Action Button Group -->
+        <div class="space-y-2 pt-1">
+          <div class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+            <i class="ph ph-compass text-amber-400"></i>
+            지도 & 교통수단 즉시 연결 (카카오맵 / 버스 / 택시)
+          </div>
+          
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <!-- 1. KakaoMap Route -->
+            <button onclick="openKakaoMap('all')" class="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-amber-400/50 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow active:scale-95">
+              <i class="ph ph-map-trifold text-amber-400 text-base"></i>
+              <span>카카오맵 길찾기</span>
+            </button>
+
+            <!-- 2. Public Transit / Bus -->
+            <button onclick="openKakaoMap('transit')" class="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-amber-400/50 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow active:scale-95">
+              <i class="ph ph-bus text-emerald-400 text-base"></i>
+              <span>버스·지하철 노선</span>
+            </button>
+
+            <!-- 3. Kakao Taxi -->
+            <button onclick="openKakaoTaxi()" class="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-amber-400/50 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow active:scale-95">
+              <i class="ph ph-taxi text-amber-400 text-base"></i>
+              <span>카카오 T 택시</span>
+            </button>
+
+            <!-- 4. Kakao Navi -->
+            <button onclick="openKakaoMap('car')" class="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-amber-400/50 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow active:scale-95">
+              <i class="ph ph-car text-blue-400 text-base"></i>
+              <span>실시간 내비</span>
+            </button>
+          </div>
+        </div>
+
       </div>
 
       <!-- Section: 오늘의 톡캘린더 일정 -->
@@ -227,7 +343,7 @@
           </button>
         </div>
 
-        <!-- Phone Shell Container (Responsive: Native on mobile, iPhone bezel on desktop) -->
+        <!-- Phone Shell Container -->
         <div class="w-full bg-[#1e232a] lg:rounded-[42px] rounded-2xl p-2 sm:p-3 shadow-2xl border-2 lg:border-4 border-slate-700 relative">
           <!-- Dynamic Island (Hidden on mobile) -->
           <div class="hidden lg:flex w-28 h-4 bg-slate-950 rounded-full mx-auto mb-2 items-center justify-center">
@@ -270,15 +386,27 @@
                     <span id="bubbleHeaderTitle" class="flex items-center gap-1 text-[11px] sm:text-xs">
                       ☀️ 굿모닝 모닝 브리핑
                     </span>
-                    <span class="text-[10px] text-slate-700">PlayMCP</span>
+                    <span class="text-[10px] text-slate-700">전국 길찾기</span>
                   </div>
                   
                   <div id="bubbleContent" class="whitespace-pre-wrap font-sans text-slate-900 text-xs">
 [AI 모닝 브리핑 생성하기]를 누르면 오늘의 날씨, 출근길 동선, 톡캘린더 일정, 금융 지표를 종합한 맞춤형 브리핑이 실시간으로 작성됩니다.
                   </div>
 
+                  <!-- Quick Feed Transit Actions inside Kakao bubble -->
+                  <div class="mt-2 pt-2 border-t border-amber-300/80 grid grid-cols-2 gap-1.5 text-[11px]">
+                    <button onclick="openKakaoMap('transit')" class="py-1.5 px-2 bg-white/90 hover:bg-white rounded-lg text-slate-900 font-bold flex items-center justify-center gap-1 shadow-sm">
+                      <i class="ph ph-bus text-emerald-600"></i>
+                      <span>버스/지하철 노선</span>
+                    </button>
+                    <button onclick="openKakaoTaxi()" class="py-1.5 px-2 bg-white/90 hover:bg-white rounded-lg text-slate-900 font-bold flex items-center justify-center gap-1 shadow-sm">
+                      <i class="ph ph-taxi text-amber-600"></i>
+                      <span>택시 요금 확인</span>
+                    </button>
+                  </div>
+
                   <!-- Quick Feed Card Style -->
-                  <div class="mt-2 pt-2 border-t border-amber-300/80 flex items-center justify-between text-[11px] font-semibold text-slate-800">
+                  <div class="pt-1.5 flex items-center justify-between text-[11px] font-semibold text-slate-800">
                     <span id="bubbleSummaryText">준비 완료</span>
                     <span class="text-[10px] text-slate-500">방금 전</span>
                   </div>
@@ -344,6 +472,65 @@
     </button>
   </div>
 
+  <!-- Modal: 전국 시·도·구·동네 3단 선택기 모달 -->
+  <div id="regionPickerModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+        <h3 class="text-base font-bold text-amber-400 flex items-center gap-2">
+          <i class="ph ph-map-pin-line text-xl"></i>
+          대한민국 전국 시·군·구·동네 선택기
+        </h3>
+        <button onclick="closeModal('regionPickerModal')" class="text-slate-400 hover:text-white">
+          <i class="ph ph-x text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">어느 항목에 적용하시겠습니까?</label>
+          <div class="flex gap-2">
+            <label class="flex-1 cursor-pointer">
+              <input type="radio" name="pickerTarget" value="origin" checked class="peer sr-only">
+              <div class="py-2 text-center rounded-lg border border-slate-700 bg-slate-900 peer-checked:border-emerald-400 peer-checked:text-emerald-300 font-semibold">
+                📍 출발지로 설정
+              </div>
+            </label>
+            <label class="flex-1 cursor-pointer">
+              <input type="radio" name="pickerTarget" value="destination" class="peer sr-only">
+              <div class="py-2 text-center rounded-lg border border-slate-700 bg-slate-900 peer-checked:border-rose-400 peer-checked:text-rose-300 font-semibold">
+                🏁 도착지로 설정
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+          <div>
+            <label class="block text-slate-400 mb-1">1. 시·도 (17개 광역)</label>
+            <select id="modalProvinceSelect" onchange="handleModalProvinceChange()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-400">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">2. 시·군·구 및 동네</label>
+            <select id="modalDistrictSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-400">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-3 flex gap-2 justify-end">
+        <button onclick="closeModal('regionPickerModal')" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-semibold text-slate-200 transition">
+          취소
+        </button>
+        <button onclick="applyModalRegionSelection()" class="px-5 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-lg text-xs font-bold transition">
+          선택 완료 및 적용
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: 스마트폰 접속용 QR 코드 -->
   <div id="mobileQrModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
@@ -359,18 +546,17 @@
 
       <div class="space-y-3">
         <p class="text-xs text-slate-300">
-          같은 Wi-Fi(공유기)에 연결된 스마트폰 카메라로 아래 QR 코드를 비추면 즉시 모바일 앱이 실행됩니다.
+          스마트폰 카메라로 아래 QR 코드를 비추면 언제 어디서든 모바일로 출근길 브리핑을 받을 수 있습니다.
         </p>
 
-        <!-- QR Code Container -->
         <div class="bg-white p-4 rounded-2xl inline-block shadow-inner mx-auto">
           <div id="qrcodeCanvas"></div>
         </div>
 
         <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-700 text-xs">
-          <div class="text-[10px] text-slate-400 mb-0.5">모바일 접속 URL</div>
+          <div class="text-[10px] text-slate-400 mb-0.5">라이브 URL</div>
           <div id="mobileUrlDisplay" class="font-mono text-amber-300 font-bold select-all break-all">
-            http://192.168.0.50:3000
+            https://1103001.vercel.app
           </div>
         </div>
 
@@ -418,7 +604,7 @@
         <div>
           <div class="font-semibold text-slate-200 mb-1">📋 추천 AI 에이전트 프롬프트 (원클릭 복사):</div>
           <div class="relative">
-            <pre id="playmcpPromptBlock" class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-[11px] font-mono text-amber-200 whitespace-pre-wrap select-all">매일 아침 7시 30분, 내 톡캘린더에서 오늘의 일정을 조회하고 카카오맵으로 집(역삼역)에서 회사(판교테크노밸리)까지의 실시간 소요 시간을 확인해줘. 그리고 오늘의 날씨와 우산 필요 여부, 추천 옷차림을 정리해서 카카오톡 나와의 채팅방으로 '굿모닝 브리핑' 메시지를 보내줘.</pre>
+            <pre id="playmcpPromptBlock" class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-[11px] font-mono text-amber-200 whitespace-pre-wrap select-all">매일 아침 7시 30분, 내 톡캘린더에서 오늘의 일정을 조회하고 카카오맵으로 집에서 회사까지의 실시간 소요 시간과 버스/지하철 노선을 확인해줘. 그리고 오늘의 날씨와 우산 필요 여부, 추천 옷차림을 정리해서 카카오톡 나와의 채팅방으로 '굿모닝 브리핑' 메시지를 보내줘.</pre>
             <button onclick="copyToClipboard(document.getElementById('playmcpPromptBlock').innerText)" class="absolute top-2 right-2 px-2 py-1 bg-amber-400 text-slate-950 rounded text-[10px] font-bold hover:bg-amber-300">
               복사
             </button>
@@ -457,10 +643,10 @@
           <ol class="list-decimal list-inside space-y-1.5 text-slate-300">
             <li><a href="https://developers.kakao.com" target="_blank" class="text-amber-400 underline font-semibold">카카오 디벨로퍼스</a> 콘솔에 로그인합니다.</li>
             <li>[내 애플리케이션] ➡️ [앱 설정] ➡️ <strong>[플랫폼]</strong> 메뉴로 이동합니다.</li>
-            <li><strong>[Web 플랫폼 등록]</strong>을 클릭하고 사이트 도메인에 아래 두 개 주소를 등록합니다:
+            <li><strong>[Web 플랫폼 등록]</strong>을 클릭하고 사이트 도메인에 아래 주소들을 등록합니다:
               <div class="mt-1 space-y-1 font-mono text-amber-300 text-[11px]">
-                <div>• <code class="bg-slate-950 px-1 py-0.5 rounded">http://localhost:3000</code> (PC용)</div>
-                <div>• <code id="kakaoMobileDomainCode" class="bg-slate-950 px-1 py-0.5 rounded">http://192.168.0.50:3000</code> (모바일용)</div>
+                <div>• <code class="bg-slate-950 px-1 py-0.5 rounded">https://1103001.vercel.app</code> (Vercel 배포 주소)</div>
+                <div>• <code class="bg-slate-950 px-1 py-0.5 rounded">http://localhost:3000</code> (PC 로컬)</div>
               </div>
             </li>
             <li>[카카오 로그인] 메뉴에서 <strong>활성화 설정 상태를 ON</strong>으로 켜고, [동의항목]에서 <strong>'카카오톡 메시지 전송(나에게 보내기)'</strong> 권한을 활성화합니다.</li>
@@ -482,7 +668,7 @@
 
   <!-- Footer -->
   <footer class="border-t border-slate-800 py-4 text-center text-xs text-slate-500">
-    ☀️ 굿모닝 카톡 브리퍼 · Powered by Kakao API & PlayMCP Architecture · Built with Antigravity
+    ☀️ 굿모닝 카톡 브리퍼 · 전국 길찾기 & 교통망 연동 · Powered by Kakao API & PlayMCP
   </footer>
 
   <script src="app.js"></script>
